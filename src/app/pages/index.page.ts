@@ -1,5 +1,7 @@
 import { Component, signal } from '@angular/core';
 
+import { randomNumberFn } from '../random-number';
+
 @Component({
   selector: 'app-home',
   standalone: true,
@@ -48,6 +50,12 @@ import { Component, signal } from '@angular/core';
 })
 export default class HomeComponent {
   count = signal(0);
+
+  ngOnInit() {
+    randomNumberFn().then((result: any) => {
+      this.count.set(result.randomNumber);
+    });
+  }
 
   increment() {
     this.count.update((count) => count + 1);
