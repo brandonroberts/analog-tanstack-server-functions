@@ -12,12 +12,12 @@ const TanStackServerFnsPlugin = createTanStackServerFnPlugin({
   manifestVirtualImportId: 'tsr:server-fn-manifest',
   client: {
     getRuntimeCode: () =>
-      `import { createClientRpc } from '@tanstack/start/client-runtime'`,
+      `import { createClientRpc } from '~/client-runtime'`,
     replacer: (opts) => `createClientRpc(${JSON.stringify(opts.functionId)})`,
   },
   ssr: {
     getRuntimeCode: () =>
-      `import { createSsrRpc } from '@tanstack/start/ssr-runtime'`,
+      `import { createSsrRpc } from '~/ssr-runtime'`,
     replacer: (opts) => `createSsrRpc(${JSON.stringify(opts.functionId)})`,
   },
   server: {
@@ -37,17 +37,17 @@ export default defineConfig(({ mode, isSsrBuild }) => ({
   resolve: {
     mainFields: ['module'],
     alias: {
-      '~': resolve(__dirname, 'src')
+      '~': resolve(process.cwd(), 'src/app')
     }
   },
   plugins: [
     analog({
-      ssr: false,
+      ssr: true,
       nitro: {
         rollupConfig: {
           plugins: [
             TanStackStartVitePlugin({ env: 'server' }),
-            TanStackServerFnsPlugin.server,
+            ...TanStackServerFnsPlugin.server,
             {
               name: 'tsr:resolve',
               resolveId(id) {
@@ -65,8 +65,37 @@ export default defineConfig(({ mode, isSsrBuild }) => ({
       }
     }),
     { ...TanStackStartVitePlugin({ env: 'client' }), enforce: 'post' },
-    { ...TanStackServerFnsPlugin.client[0], enforce: 'post' },
-    TanStackServerFnsPlugin.client[1]
+    {
+      ...TanStackServerFnsPlugin.client[0],
+      enforce: 'post',
+      transform(code, id, options) {
+        if (!options?.ssr) {
+          // console.log('ss')
+          const transform = TanStackServerFnsPlugin.client[0].transform as Function;
+          const result = transform(code, id);
+
+          return result;
+        }
+
+        return undefined;
+      }
+    },
+    TanStackServerFnsPlugin.client[1],
+    {
+      ...TanStackServerFnsPlugin.ssr[0],
+      enforce: 'post',
+      transform(code, id, options) {
+        if (options?.ssr) {
+          // console.log('ss')
+          const transform = TanStackServerFnsPlugin.ssr[0].transform as Function;
+          const result = transform(code, id);
+
+          return result;
+        }
+
+        return undefined;
+      }
+    }
   ],
   test: {
     globals: true,
